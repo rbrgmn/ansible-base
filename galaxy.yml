@@ -1,0 +1,15 @@
+namespace: rabe
+name: base
+version: 0.0.1
+readme: README.md
+authors:
+  - rbrgmn <roman.bergman@tutanota.com>
+description: Base infrastracture roles
+license: MIT
+
+dependencies: {}
+
+repository: https://github.com/rbrgmn/ansible-base
+documentation: https://github.com/rbrgmn/ansible-base
+homepage: https://github.com/rbrgmn/ansible-base
+issues: https://github.com/rbrgmn/ansible-base/issues
