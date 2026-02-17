@@ -1,0 +1,42 @@
+---
+# Set true to permit reboot when required and reboot tag is used.
+bootstrap_reboot_if_required: true
+bootstrap_reboot_timeout: 900
+
+bootstrap_timezone: UTC
+bootstrap_time_sync_daemon: chrony
+bootstrap_chrony_service_map:
+  Debian: chrony
+  RedHat: chronyd
+
+bootstrap_package_cache_valid_time: 3600
+
+bootstrap_default_packages_debian:
+  - curl
+  - wget
+  - ca-certificates
+  - gnupg
+  - apt-transport-https
+
+bootstrap_default_packages_redhat:
+  - curl
+  - wget
+  - ca-certificates
+  - gnupg2
+
+bootstrap_packages: >-
+  {{
+    (ansible_os_family == "Debian")
+    | ternary(bootstrap_default_packages_debian, bootstrap_default_packages_redhat)
+  }}
+
+bootstrap_default_sysctl:
+  net.ipv4.ip_forward: "1"
+  fs.file-max: "100000"
+  vm.swappiness: "10"
+
+bootstrap_sysctl_overrides: {}
+
+bootstrap_kernel_modules:
+  - overlay
+  - br_netfilter

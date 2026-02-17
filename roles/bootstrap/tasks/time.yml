@@ -1,0 +1,69 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Validate time sync daemon choice
+  ansible.builtin.assert:
+    that:
+      - bootstrap_time_sync_daemon in ["chrony", "systemd-timesyncd"]
+    fail_msg: "bootstrap_time_sync_daemon must be either 'chrony' or 'systemd-timesyncd'."
+
+- name: Check requested timezone exists
+  ansible.builtin.stat:
+    path: "/usr/share/zoneinfo/{{ bootstrap_timezone }}"
+  register: bootstrap_timezone_file
+
+- name: Validate requested timezone
+  ansible.builtin.assert:
+    that:
+      - bootstrap_timezone_file.stat.exists
+    fail_msg: "Timezone '{{ bootstrap_timezone }}' is not available on this host."
+
+- name: Read current timezone from timedatectl
+  ansible.builtin.command: timedatectl show -p Timezone --value
+  register: bootstrap_current_timezone
+  changed_when: false
+  failed_when: false
+  when: ansible_service_mgr == "systemd"
+
+- name: Set timezone using timedatectl
+  ansible.builtin.command: "timedatectl set-timezone {{ bootstrap_timezone }}"
+  when:
+    - ansible_service_mgr == "systemd"
+    - bootstrap_current_timezone.rc == 0
+    - bootstrap_current_timezone.stdout != bootstrap_timezone
+
+- name: Set timezone via /etc/localtime symlink on non-systemd hosts
+  ansible.builtin.file:
+    src: "/usr/share/zoneinfo/{{ bootstrap_timezone }}"
+    dest: /etc/localtime
+    state: link
+    force: true
+  when: ansible_service_mgr != "systemd"
+
+- name: Ensure chrony is installed
+  ansible.builtin.package:
+    name: chrony
+    state: present
+  when: bootstrap_time_sync_daemon == "chrony"
+
+- name: Ensure chrony service is enabled and running
+  ansible.builtin.service:
+    name: "{{ bootstrap_chrony_service_map[ansible_os_family] }}"
+    state: started
+    enabled: true
+  when: bootstrap_time_sync_daemon == "chrony"
+
+- name: Ensure systemd-timesyncd is enabled and running
+  ansible.builtin.service:
+    name: systemd-timesyncd
+    state: started
+    enabled: true
+  when:
+    - bootstrap_time_sync_daemon == "systemd-timesyncd"
+    - ansible_service_mgr == "systemd"
+
+- name: Ensure systemd-timesyncd is only selected on systemd hosts
+  ansible.builtin.assert:
+    that:
+      - ansible_service_mgr == "systemd"
+    fail_msg: "systemd-timesyncd requires systemd as the service manager."
+  when: bootstrap_time_sync_daemon == "systemd-timesyncd"

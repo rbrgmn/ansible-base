@@ -1,0 +1,30 @@
+#SPDX-License-Identifier: MIT-0
+---
+galaxy_info:
+  author: rbrgmn <roman.bergman@tutanota.com>
+  description: Minimal, idempotent host bootstrap baseline for Debian and RedHat families
+  license: MIT
+  min_ansible_version: "2.13"
+  platforms:
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+        - "10"
+  galaxy_tags:
+    - bootstrap
+    - baseline
+    - system
+    - linux
+    - hardening
+
+dependencies: []

@@ -1,0 +1,36 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Refresh apt cache and perform safe dist-upgrade
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ bootstrap_package_cache_valid_time }}"
+    upgrade: dist
+    autoremove: true
+
+- name: Check Debian reboot-required marker
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: bootstrap_debian_reboot_flag
+
+- name: Store Debian reboot requirement
+  ansible.builtin.set_fact:
+    bootstrap_reboot_required: "{{ bootstrap_debian_reboot_flag.stat.exists | default(false) }}"
+
+- name: Re-check reboot requirement marker on Debian when running reboot tag only
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: bootstrap_reboot_marker_recheck
+  when:
+    - "'reboot' in (ansible_run_tags | default([]))"
+    - bootstrap_reboot_required is not defined
+  tags:
+    - reboot
+
+- name: Store Debian reboot requirement for reboot-tag run
+  ansible.builtin.set_fact:
+    bootstrap_reboot_required: "{{ bootstrap_reboot_marker_recheck.stat.exists | default(false) }}"
+  when:
+    - "'reboot' in (ansible_run_tags | default([]))"
+    - bootstrap_reboot_required is not defined
+  tags:
+    - reboot

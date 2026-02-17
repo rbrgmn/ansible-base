@@ -1,0 +1,77 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Ensure EPEL release package is installed on EL 8-10
+  ansible.builtin.package:
+    name: epel-release
+    state: present
+  when:
+    - ansible_distribution in ["RedHat", "CentOS", "Rocky", "AlmaLinux", "OracleLinux"]
+    - (ansible_distribution_major_version | int) >= 8
+    - (ansible_distribution_major_version | int) <= 10
+
+- name: Refresh dnf package metadata
+  ansible.builtin.dnf:
+    update_cache: true
+  when: ansible_pkg_mgr in ["dnf", "dnf5"]
+
+- name: Refresh yum package metadata
+  ansible.builtin.yum:
+    update_cache: true
+  when: ansible_pkg_mgr == "yum"
+
+- name: Update installed packages to latest on dnf systems
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    update_only: true
+  when: ansible_pkg_mgr in ["dnf", "dnf5"]
+
+- name: Update installed packages to latest on yum systems
+  ansible.builtin.yum:
+    name: "*"
+    state: latest
+  when: ansible_pkg_mgr == "yum"
+
+- name: Check whether RHEL-family reboot is required
+  ansible.builtin.shell: |
+    if command -v needs-restarting >/dev/null 2>&1; then
+      needs-restarting -r
+    else
+      exit 0
+    fi
+  args:
+    executable: /bin/bash
+  register: bootstrap_rhel_reboot_check
+  changed_when: false
+  failed_when: bootstrap_rhel_reboot_check.rc not in [0, 1]
+
+- name: Store RHEL reboot requirement
+  ansible.builtin.set_fact:
+    bootstrap_reboot_required: "{{ bootstrap_rhel_reboot_check.rc == 1 }}"
+
+- name: Re-check reboot requirement on RedHat when running reboot tag only
+  ansible.builtin.shell: |
+    if command -v needs-restarting >/dev/null 2>&1; then
+      needs-restarting -r
+    else
+      exit 0
+    fi
+  args:
+    executable: /bin/bash
+  register: bootstrap_reboot_needs_restarting_recheck
+  changed_when: false
+  failed_when: bootstrap_reboot_needs_restarting_recheck.rc not in [0, 1]
+  when:
+    - "'reboot' in (ansible_run_tags | default([]))"
+    - bootstrap_reboot_required is not defined
+  tags:
+    - reboot
+
+- name: Store RedHat reboot requirement for reboot-tag run
+  ansible.builtin.set_fact:
+    bootstrap_reboot_required: "{{ bootstrap_reboot_needs_restarting_recheck.rc == 1 }}"
+  when:
+    - "'reboot' in (ansible_run_tags | default([]))"
+    - bootstrap_reboot_required is not defined
+  tags:
+    - reboot

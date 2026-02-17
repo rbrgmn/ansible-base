@@ -1,0 +1,13 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Initialize reboot requirement fact
+  ansible.builtin.set_fact:
+    bootstrap_reboot_required: false
+
+- name: Run Debian-specific update tasks
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == "Debian"
+
+- name: Run RedHat-specific update tasks
+  ansible.builtin.import_tasks: redhat.yml
+  when: ansible_os_family == "RedHat"

@@ -1,0 +1,49 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Validate supported operating system family
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family in ["Debian", "RedHat"]
+    fail_msg: "Unsupported OS family: {{ ansible_os_family }}. Only Debian and RedHat are supported."
+
+- name: Update operating system packages
+  ansible.builtin.import_tasks: update.yml
+
+- name: Install baseline packages
+  ansible.builtin.package:
+    name: "{{ bootstrap_packages }}"
+    state: present
+
+- name: Persist kernel modules required for containers
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/bootstrap.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {% for module_name in bootstrap_kernel_modules %}
+      {{ module_name }}
+      {% endfor %}
+
+- name: Load kernel modules required for containers
+  ansible.builtin.command: "modprobe {{ item }}"
+  changed_when: false
+  loop: "{{ bootstrap_kernel_modules }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Apply sysctl baseline
+  ansible.builtin.import_tasks: sysctl.yml
+
+- name: Configure time synchronization
+  ansible.builtin.import_tasks: time.yml
+
+- name: Reboot host when requested and required
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ bootstrap_reboot_timeout }}"
+  when:
+    - bootstrap_reboot_if_required | bool
+    - bootstrap_reboot_required | default(false) | bool
+    - "'reboot' in (ansible_run_tags | default([]))"
+  tags:
+    - reboot

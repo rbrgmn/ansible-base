@@ -1,0 +1,18 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Build effective sysctl settings
+  ansible.builtin.set_fact:
+    bootstrap_effective_sysctl: "{{ bootstrap_default_sysctl | combine(bootstrap_sysctl_overrides, recursive=True) }}"
+
+- name: Persist bootstrap sysctl settings
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-bootstrap.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (role: bootstrap)
+      {% for item in bootstrap_effective_sysctl | dictsort %}
+      {{ item.0 }} = {{ item.1 }}
+      {% endfor %}
+  notify: Reload sysctl
